@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>游戏入口</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Microsoft Yahei", sans-serif;
+        }
+        ::selection {
+            background: #409eff;
+            color: #fff;
+        }
+        body {
+            background-color: #1a1a1a;
+            color: #fff;
+            display: flex;
+            min-height: 100vh;
+            line-height: 1.6;
+            position: relative;
+            overflow: hidden;
+        }
+        /* ========== 星光粒子飘落 ========== */
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 2;
+            overflow: hidden;
+        }
+        .particle {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: #fff;
+            border-radius: 50%;
+            opacity: 0;
+            animation: particleFloat linear infinite;
+            box-shadow: 0 0 4px 1px rgba(255, 255, 255, 0.2);
+        }
+        @keyframes particleFloat {
+            0% {
+                opacity: 0;
+                transform: translateY(0) translateX(0);
+            }
+            10% { opacity: 0.5; }
+            90% { opacity: 0.3; }
+            100% {
+                opacity: 0;
+                transform: translateY(100vh) translateX(80px);
+            }
+        }
+        /* 鼠标跟随光晕 */
+        .cursor-glow {
+            position: fixed;
+            width: 250px;
+            height: 250px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(64, 158, 255, 0.1) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+            transform: translate(-50%, -50%);
+            transition: transform 0.15s ease-out;
+            mix-blend-mode: screen;
+        }
+        /* 动态背景层 */
+        .game-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            filter: blur(55px) brightness(0.38) saturate(0.9);
+            transform: scale(1.15);
+            opacity: 0;
+            transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            animation: bgBreath 8s ease-in-out infinite;
+        }
+        .game-bg.active {
+            transform: scale(1);
+            opacity: 1;
+        }
+        @keyframes bgBreath {
+            0%, 100% { transform: scale(1) rotate(0deg); }
+            50% { transform: scale(1.03) rotate(0.3deg); }
+        }
+        .bg-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            background: linear-gradient(135deg, rgba(26, 26, 26, 0.55) 0%, rgba(18, 18, 18, 0.7) 100%);
+            pointer-events: none;
+        }
+        /* 边框流动光效（仅Q群提示框使用） */
+        .glow-border {
+            position: relative;
+            overflow: hidden;
+        }
+        .glow-border::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: conic-gradient(
+                transparent,
+                rgba(64, 158, 255, 0.2),
+                transparent,
+                rgba(103, 194, 58, 0.2),
+                transparent
+            );
+            animation: borderRotate 6s linear infinite;
+            z-index: -1;
+        }
+        @keyframes borderRotate {
+            100% { transform: rotate(360deg); }
+        }
+        .glow-border::before {
+            content: '';
+            position: absolute;
+            inset: 1.5px;
+            background: inherit;
+            border-radius: inherit;
+            z-index: -1;
+        }
+        /* 左侧栏样式 + 滚动条美化 */
+        .sidebar {
+            width: 320px;
+            background: rgba(18, 18, 18, 0.65);
+            backdrop-filter: blur(25px) saturate(180%);
+            -webkit-backdrop-filter: blur(25px) saturate(180%);
+            padding: 20px;
+            border-right: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 
+                4px 0 30px rgba(0, 0, 0, 0.3),
+                inset -1px 0 0 rgba(255, 255, 255, 0.05);
+            overflow-y: auto;
+            position: relative;
+            z-index: 10;
+            animation: slideInLeft 0.8s ease-out;
+            max-height: 100vh;
+        }
+        /* 左侧滚动条 */
+        .sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .sidebar::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.05);
+            border-radius: 3px;
+        }
+        .sidebar::-webkit-scrollbar-thumb {
+            background: rgba(64, 158, 255, 0.4);
+            border-radius: 3px;
+        }
+        .sidebar::-webkit-scrollbar-thumb:hover {
+            background: rgba(64, 158, 255, 0.7);
+        }
+
+        @keyframes slideInLeft {
+            from { opacity: 0; transform: translateX(-50px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        .sidebar-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 30px;
+        }
+        .sidebar-header .icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #409eff, #66b1ff);
+            border-radius: 6px;
+            flex-shrink: 0;
+            box-shadow: 0 2px 12px rgba(64, 158, 255, 0.4);
+        }
+        .sidebar-subtitle {
+            color: #888;
+            margin-bottom: 20px;
+            font-size: 13px;
+            letter-spacing: 1px;
+        }
+        .game-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .game-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .game-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(64, 158, 255, 0.15), transparent);
+            transition: left 0.5s ease;
+        }
+        .game-item:hover::before {
+            left: 100%;
+        }
+        .game-item.active {
+            background: rgba(64, 158, 255, 0.12);
+            border: 1px solid rgba(64, 158, 255, 0.35);
+            box-shadow: 
+                0 4px 16px rgba(64, 158, 255, 0.15),
+                inset 0 1px 0 rgba(64, 158, 255, 0.15);
+        }
+        .game-item:hover:not(.active) {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(255, 255, 255, 0.1);
+            transform: translateX(3px);
+        }
+        .game-item .game-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            background-color: #444;
+            flex-shrink: 0;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            transition: transform 0.3s ease;
+        }
+        .game-item:hover .game-icon {
+            transform: scale(1.08);
+        }
+        .game-info {
+            flex: 1;
+        }
+        .game-name {
+            font-size: 15px;
+            margin-bottom: 4px;
+            font-weight: 500;
+        }
+        .game-tag {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .game-tag .type {
+            background: rgba(255, 255, 255, 0.08);
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-size: 11px;
+            color: #aaa;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .game-tag .hot {
+            background: linear-gradient(135deg, #f56c6c, #ff7875);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            color: #fff;
+            box-shadow: 0 2px 6px rgba(245, 108, 108, 0.25);
+            animation: hotPulse 2.5s ease-in-out infinite;
+        }
+        @keyframes hotPulse {
+            0%, 100% { box-shadow: 0 2px 6px rgba(245, 108, 108, 0.25); }
+            50% { box-shadow: 0 2px 12px rgba(245, 108, 108, 0.5); }
+        }
+        /* 右侧主区域样式 + 滚动条美化 */
+        .main {
+            flex: 1;
+            padding: 40px;
+            position: relative;
+            z-index: 10;
+            animation: fadeInUp 0.8s ease-out 0.2s both;
+            overflow-y: auto;
+            max-height: 100vh;
+        }
+        /* 右侧滚动条 */
+        .main::-webkit-scrollbar {
+            width: 6px;
+        }
+        .main::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.05);
+            border-radius: 3px;
+        }
+        .main::-webkit-scrollbar-thumb {
+            background: rgba(64, 158, 255, 0.4);
+            border-radius: 3px;
+        }
+        .main::-webkit-scrollbar-thumb:hover {
+            background: rgba(64, 158, 255, 0.7);
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .top-right {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.06);
+            backdrop-filter: blur(20px) saturate(180%);
+            padding: 10px 18px;
+            border-radius: 25px;
+            font-size: 14px;
+            color: #ccc;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+            animation: float 3.5s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-4px); }
+        }
+        .game-title {
+            font-size: 52px;
+            font-weight: bold;
+            margin-bottom: 24px;
+            background: linear-gradient(135deg, #fff 0%, #409eff 30%, #67c23a 60%, #fff 100%);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: shine 3.5s linear infinite;
+        }
+        @keyframes shine {
+            to { background-position: 200% center; }
+        }
+        .game-intro {
+            max-width: 800px;
+            height: 420px;
+            overflow-y: auto;
+            padding-right: 15px;
+            line-height: 1.85;
+            color: #d0d0d0;
+            font-size: 15px;
+            /* 切换时淡入动画 */
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.4s ease;
+        }
+        .game-intro.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .game-intro p {
+            margin-bottom: 10px;
+        }
+        .game-intro strong {
+            color: #fff;
+        }
+        /* 全局小型滚动条（原有保留） */
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        /* 按钮区域 */
+        .btn-wrap {
+            margin-top: 32px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+        .download-btn, .reg-btn {
+            padding: 13px 30px;
+            color: #fff;
+            border-radius: 10px;
+            text-decoration: none;
+            font-size: 15px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            border: none;
+            outline: none;
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+        }
+        .ripple {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.35);
+            transform: scale(0);
+            animation: rippleEffect 0.6s ease-out;
+            pointer-events: none;
+        }
+        @keyframes rippleEffect {
+            to { transform: scale(4.5); opacity: 0; }
+        }
+        .download-btn {
+            background: linear-gradient(135deg, #409eff 0%, #66b1ff 100%);
+            box-shadow: 
+                0 4px 14px rgba(64, 158, 255, 0.35),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        }
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 
+                0 7px 22px rgba(64, 158, 255, 0.45),
+                inset 0 1px 0 rgba(255, 255, 255, 0.25);
+        }
+        .reg-btn {
+            background: linear-gradient(135deg, #67c23a 0%, #85d85a 100%);
+            box-shadow: 
+                0 4px 14px rgba(103, 194, 58, 0.35),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        }
+        .reg-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 
+                0 7px 22px rgba(103, 194, 58, 0.45),
+                inset 0 1px 0 rgba(255, 255, 255, 0.25);
+        }
+        .btn-disabled {
+            pointer-events: none;
+            opacity: 0.35;
+            cursor: not-allowed !important;
+            box-shadow: none !important;
+            transform: none !important;
+            filter: grayscale(40%);
+        }
+        .invite-box {
+            padding: 13px 22px;
+            background: rgba255, 193, 7, 0.08);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 193, 7, 0.25);
+            border-radius: 10px;
+            color: #ffd54f;
+            font-size: 15px;
+            box-shadow: 0 4px 12px rgba(255, 193, 7, 0.12);
+        }
+        /* 缩略图容器 */
+        .game-screenshot {
+            margin-top: 36px;
+            max-width: 600px;
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .game-screenshot img {
+            flex: 1;
+            min-width: 140px;
+            max-width: 100%;
+            height: auto;
+            display: block;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #333;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .game-screenshot img:hover {
+            transform: scale(1.04) translateY(-4px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.35);
+            border-color: rgba(64, 158, 255, 0.35);
+        }
+        /* 图片放大弹窗 */
+        .img-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.86);
+            backdrop-filter: blur(8px);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+        }
+        .img-modal.show {
+            display: flex;
+        }
+        .modal-close {
+            position: absolute;
+            top: 30px;
+            right: 40px;
+            font-size: 36px;
+            color: #fff;
+            cursor: pointer;
+            z-index: 10;
+            user-select: none;
+            transition: all 0.2s;
+            width: 46px;
+            height: 46px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
+        }
+        .modal-close:hover {
+            background: rgba(245, 108, 108, 0.25);
+            transform: rotate(90deg);
+        }
+        .modal-prev, .modal-next {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 44px;
+            color: #fff;
+            cursor: pointer;
+            padding: 12px 18px;
+            user-select: none;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 12px;
+            transition: all 0.2s;
+        }
+        .modal-prev:hover, .modal-next:hover {
+            background: rgba(64, 158, 255, 0.25);
+            border-color: rgba(64, 158, 255, 0.4);
+        }
+        .modal-prev {
+            left: 30px;
+        }
+        .modal-next {
+            right: 30px;
+        }
+        .modal-img {
+            max-width: 85%;
+            max-height: 85%;
+            object-fit: contain;
+            border-radius: 12px;
+            box-shadow: 0 16px 50px rgba(0, 0, 0, 0.45);
+        }
+        /* 移动端适配 */
+        @media (max-width: 900px) {
+            body {
+                flex-direction: column;
+                overflow: auto;
+            }
+            .sidebar {
+                width: 100%;
+                height: auto;
+                border-right: none;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+                max-height: unset;
+            }
+            .main {
+                padding: 20px;
+                max-height: unset;
+            }
+            .game-title {
+                font-size: 32px;
+            }
+            .top-right {
+                position: static;
+                margin-bottom: 20px;
+                display: inline-block;
+            }
+            .cursor-glow, .particles {
+                display: none;
+            }
+            .game-bg {
+                filter: blur(40px) brightness(0.32) saturate(0.85);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 星光粒子容器 -->
+    <div class="particles" id="particles"></div>
+    <!-- 鼠标跟随光晕 -->
+    <div class="cursor-glow" id="cursorGlow"></div>
+    <!-- 动态背景层 -->
+    <div class="game-bg" id="gameBg"></div>
+    <div class="bg-overlay"></div>
+    <!-- 左侧游戏列表 -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <div class="icon"></div>
+            热门游戏
+        </div>
+        <div class="sidebar-subtitle">全部游戏 / ALL GAMES</div>
+        <div class="game-list">
+            <div class="game-item active" onclick="showGame('仗剑传说')">
+                <div class="game-icon" style="background: url('icon1.png') center/cover;"></div>
+                <div class="game-info">
+                    <div class="game-name">仗剑传说</div>
+                    <div class="game-tag">
+                        <span class="type">角色扮演闯关</span>
+                        <span class="hot">HOT</span>
+                    </div>
+                </div>
+            </div>
+            <div class="game-item" onclick="showGame('问道畅玩服10周年')">
+                <div class="game-icon" style="background: url('icon2.png') center/cover;"></div>
+                <div class="game-info">
+                    <div class="game-name">问道畅玩服10周年</div>
+                    <div class="game-tag">
+                        <span class="type">养成组队</span>
+                        <span class="hot">HOT</span>
+                    </div>
+                </div>
+            </div>
+            <div class="game-item" onclick="showGame('道友来挖宝')">
+                <div class="game-icon" style="background: url('icon3.png') center/cover;"></div>
+                <div class="game-info">
+                    <div class="game-name">道友来挖宝</div>
+                    <div class="game-tag">
+                        <span class="type">养成组队PK</span>
+                        <span class="hot">HOT</span>
+                    </div>
+                </div>
+            </div>
+            <div class="game-item" onclick="showGame('潮汐守望者')">
+                <div class="game-icon" style="background: url('icon4.png') center/cover;"></div>
+                <div class="game-info">
+                    <div class="game-name">潮汐守望者</div>
+                    <div class="game-tag">
+                        <span class="type">养成组队塔防</span>
+                        <span class="hot">HOT</span>
+                    </div>
+                </div>
+            </div>
+            <div class="game-item" onclick="showGame('保卫向日葵国际服')">
+                <div class="game-icon" style="background: url('icon5.png') center/cover;"></div>
+                <div class="game-info">
+                    <div class="game-name">保卫向日葵国际服</div>
+                    <div class="game-tag">
+                        <span class="type">塔防</span>
+                        <span class="hot">HOT</span>
+                    </div>
+                </div>
+            </div>
+            <div class="game-item" onclick="showGame('奔奔王国国际服')">
+                <div class="game-icon" style="background: url('icon6.png') center/cover;"></div>
+                <div class="game-info">
+                    <div class="game-name">奔奔王国国际服</div>
+                    <div class="game-tag">
+                        <span class="type">建造塔防</span>
+                        <span class="hot">HOT</span>
+                    </div>
+                </div>
+            </div>
+            <div class="game-item" onclick="showGame('遗弃之地')">
+                <div class="game-icon" style="background: url('icon7.png') center/cover;"></div>
+                <div class="game-info">
+                    <div class="game-name">遗弃之地</div>
+                    <div class="game-tag">
+                        <span class="type">动作升级</span>
+                        <span class="hot">HOT</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- 右侧游戏详情 -->
+    <div class="main">
+        <div class="top-right glow-border">
+            <span>💬 开心俱乐部 Q群：855901919</span>
+        </div>
+        <h1 class="game-title" id="gameTitle">仗剑传说</h1>
+        <div class="game-intro" id="gameIntro"></div>
+        <div class="btn-wrap">
+            <a target="_blank" class="download-btn" id="downloadBtn">点击下载游戏</a>
+            <a target="_blank" class="reg-btn" id="regBtn">账号注册</a>
+            <div class="invite-box">邀请码：<span id="codeText"></span></div>
+        </div>
+        <div class="game-screenshot" id="screenshotBox"></div>
+    </div>
+    <!-- 图片放大弹窗 -->
+    <div class="img-modal" id="imgModal">
+        <span class="modal-close" id="modalClose">×</span>
+        <button class="modal-prev" id="modalPrev">‹</button>
+        <img src="" alt="放大图片" class="modal-img" id="modalImg">
+        <button class="modal-next" id="modalNext">›</button>
+    </div>
+    <script>
+        const downloadBtn = document.getElementById('downloadBtn');
+        const regBtn = document.getElementById('regBtn');
+        const screenshotBox = document.getElementById('screenshotBox');
+        const imgModal = document.getElementById('imgModal');
+        const modalImg = document.getElementById('modalImg');
+        const modalClose = document.getElementById('modalClose');
+        const modalPrev = document.getElementById('modalPrev');
+        const modalNext = document.getElementById('modalNext');
+        const gameBg = document.getElementById('gameBg');
+        const cursorGlow = document.getElementById('cursorGlow');
+        const gameIntro = document.getElementById('gameIntro');
+        const particles = document.getElementById('particles');
+        let currentImgList = [];
+        let currentImgIndex = 0;
+        // 星光粒子
+        function createParticles() {
+            const particleCount = 40;
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.animationDuration = (10 + Math.random() * 15) + 's';
+                particle.style.animationDelay = Math.random() * 12 + 's';
+                particle.style.width = (1.5 + Math.random() * 2) + 'px';
+                particle.style.height = particle.style.width;
+                particles.appendChild(particle);
+            }
+        }
+        createParticles();
+        // 鼠标跟随光晕
+        document.addEventListener('mousemove', (e) => {
+            cursorGlow.style.left = e.clientX + 'px';
+            cursorGlow.style.top = e.clientY + 'px';
+        });
+        // 按钮波纹点击
+        function createRipple(e, button) {
+            const ripple = document.createElement('span');
+            ripple.className = 'ripple';
+            const rect = button.getBoundingClientRect();
+            const size = Math.max(rect.width, rect.height);
+            ripple.style.width = ripple.style.height = size + 'px';
+            ripple.style.left = e.clientX - rect.left - size / 2 + 'px';
+            ripple.style.top = e.clientY - rect.top - size / 2 + 'px';
+            button.appendChild(ripple);
+            setTimeout(() => ripple.remove(), 600);
+        }
+        downloadBtn.addEventListener('click', (e) => createRipple(e, downloadBtn));
+        regBtn.addEventListener('click', (e) => createRipple(e, regBtn));
+        // ✅ 游戏完整数据 - 100% 保留所有简介内容，未做任何删减
+        const gameData = {
+            '仗剑传说': {
+                title: "仗剑传说",
+                intro: `<p>经典对战游戏，玩法简单有趣。</p><p>点击下方按钮进入游戏</p><p><strong>兑换码</strong></p><p>110: 99999</p><p>50: 99999</p><p>16: 999999</p><p>101: 1000</p><p>201: 1000</p><p>301: 1000</p><p>401: 1000</p><p>501: 1000</p><p>601: 1000</p><p>701: 1000</p><p>801: 1000</p><p>901: 1000</p><p>111: 1000</p><p>level</p><p>兑换码可以一直使用，无限次数</p>`,
+                gameUrl: "", regUrl: "", inviteCode: "", imgs: []
+            },
+            '问道畅玩服10周年': {
+                title: "问道畅玩服10周年",
+                intro: `<p>经典对战游戏。</p><p><strong>新人上线福利礼包：</strong></p><p>10周年神宠：变异葫芦娃 ➕ 浪浪山小猩猩 ➕ 浪浪山小野猪 ➕ 新时装哪吒三太子 ➕ 位列仙班·年卡礼包 ➕ 改7装备套装 ➕ 2000W银元宝 ➕ 79级经验大礼包 ➕ 20亿潜能</p><p>上线100万金元宝，7日登陆领取！</p><p><strong>兑换码领取方式：</strong>游戏左上角点周年特色，找到兑换码输入即可</p><p>福利兑换码：VIP666</p><p>福利兑换码：VIP888</p><p>专属兑换码：VIP999</p><p>年卡兑换码：NK666</p>
+<p>《2026》</p>
+<p>开服网络波动补偿CDK：BC888</p>
+<p>（20万银➕随机变异一只）</p>
+<p>卡顿已经修复，人气已经突破2万，感谢大家的支持</p>
+<p>原汁原味10周年！开放149等级，功能齐全！等级弹送礼包</p>
+<p>充值相应礼包金额的同时，也获得1比10万金元宝的奖励，并计入累计,弹窗时长24小时，超过该等级段位就会消失，切莫错过</p>
+<p>单笔充值30元</p>
+<p>70级：（改8装备继承套+神兽：疆良+随机魂器一件*+飞行器：墨舞青云+2000次抽奖豪礼）</p>
+<p>单笔充值88元</p>
+<p>80级：（9速黄金太极熊+80级相5首饰一套+元灵令牌100*+20级法宝火珠子+8000次抽奖豪礼）</p>
+<p>单笔充值190元</p>
+<p>90级：（300元充值卡+90级相5技能10首饰一套+随机神兽礼包5*+随机鬼仙1+20000次抽奖豪礼）</p>
+<p>单笔充值299元</p>
+<p>100级：（500元充值卡+20级自选法宝+100级相5技能10首饰一套+随机神兽礼包10*+元灵令牌100*+30000次抽奖豪礼）</p>
+<p>单笔充值499元</p>
+<p>110级:(600元充值卡+随机神兽礼包15*+随机元灵一只+随机鬼仙1+40000次抽奖豪礼)</p>
+<p>单笔充值599元</p>
+<p>120级：（800元充值卡+随机神兽礼包20*+随机元灵一只+100级相5双敏捷首饰一套+60000次抽奖豪礼）</p>
+<p>单笔充值799元</p>
+<p>130级：（1000元充值卡+随机神兽礼包30*+随机元灵一只+100级相5双敏捷首饰一套+100000次抽奖豪礼)</p>
+<p>单笔充值1088元</p>
+<p>140级：（1500元充值卡+随机元灵一只+随机鬼仙1+20级自选法宝+10速九尾狐+200000次抽奖豪礼）</p>`,
+                gameUrl: "https://cwfu.ququ.im/cwfu.html",
+                regUrl: "https://cwdl.ahqlhkj.top/index/index/reg.html?r=a37j.ohxAopMJTS_T",
+                inviteCode: "NI3（字母大写）",
+                imgs: []
+            },
+            '道友来挖宝': {
+                title: "道友来挖宝",
+                intro: `<p>经典对战游戏，趣味挖宝，休闲摸鱼。</p><p><strong>完整兑换码：</strong></p><p>520:（520特级藏宝图，520超级藏宝图，520藏宝图，520神兽丹，520点化丹）</p><p>强力障碍速来：超级绿水晶 x10</p><p>强力障碍速来1：超级绿水晶 x20</p><p>强力障碍速来2：超级绿水晶 x30</p><p>粉出奇迹：超级粉水晶 x10</p><p>归元不是桂圆：超级归元露 x10</p><p>大力合X5：超级女娲石 x10</p><p>改10我来了：超级灵石 x10 超级晶石 x10</p>`,
+                gameUrl: "https://wlgb.ququ.im/WLGB.html",
+                regUrl: "http://34.81.43.65:8081/login",
+                inviteCode: "AAA666",
+                imgs: []
+            },
+            '潮汐守望者': {
+                title: "潮汐守望者",
+                intro: `<p>记忆塔防小游戏，休闲解压。</p>`,
+                gameUrl: "https://cx.lepu.im/CXSW.html",
+                regUrl: "http://103.45.130.2010/v1/user/registerUser",
+                inviteCode: "qCEG",
+                imgs: []
+            },
+            '保卫向日葵国际服': {
+                title: "保卫向日葵国际服",
+                intro: `<p>记忆塔防小游戏，休闲解压。</p><p><strong>内测兑换码</strong></p><p>jump111、lv80、t01、t02、t03、t04、t05、t06</p>`,
+                gameUrl: "https://fefa.fefa4.xin/pc/download/ncpof30l",
+                regUrl: "http://bwxrk.43595.cn/shop/register.html?agent=sSUD4A",
+                inviteCode: "注册自带",
+                imgs: []
+            },
+            '奔奔王国国际服': {
+                title: "奔奔王国国际服",
+                intro: `<p>记忆塔防小游戏，休闲解压。</p>`,
+                gameUrl: "https://live-landing.kjrwl1.com",
+                regUrl: "",
+                inviteCode: "",
+                imgs: ["benben1.jpg", "benben2.jpg", "benben3.jpg"]
+            },
+            '遗弃之地': {
+                title: "遗弃之地",
+                intro: `<p>角色升级小游戏，休闲解压。</p><p><strong>内测专属</strong></p><p>CDK1：YQZD666</p>
+<p>1. 傩面・恶鬼夜叉 ×1，身躯・伏羲残躯 ×1，武器・往生之矢 ×1，影幕・三更天 ×1，卦纸 ×3000，铜钱 ×800 万，黄金 ×120，洛阳铲 ×150，宝箱钥匙 ×40，精力 ×500，复活丹 ×50.随机白色符咒 ×120，攻击修炼丹 ×100，生命修炼丹 ×100.摸金宝箱 ×3，祭祀品 ×50，火象丹 ×30、水象丹 ×30，宝物随机礼包 - 小怪 1×2，随机凡品脸谱一 ×1，绿陶罐 ×1</p>
+ 
+<p>CDK2：YQZD888</p>
+<p>卦纸 ×3000，铜钱 ×1500 万，黄金 ×260，五帝钱 ×300，随机蓝色符咒 ×80，随机紫色符咒 ×30，修炼突破石 ×150，战令经验 ×5000，人气 ×1000，挂机特权 ×3 天，普通内丹随机材料 ×5 组，金窟宝箱一 ×2，灵攻丹 ×25、灵生丹 ×25，，古玉 ×1、青花宝瓶 ×1随机良品脸谱一 ×1</p>
+<p>CDK3：YQZD999</p>
+<p>傩面・钟馗无常 ×1，身躯・钟馗无我 ×1，武器・判官扇 ×1，卦纸 ×3000，铜钱 ×250 万，黄金 ×580，五帝钱 ×880，随机天书 ×1，随机天书残页 ×60，玄法箓 ×30，通天箓 ×30，灵魂碎片 ×1500，鬼仆精魄 ×800，饿鬼道魂灯 ×40，人道魂灯 ×40，自选紫色符咒 ×25，随机橙色符咒 ×20，随机珍贵内丹 ×5，遗弃券 ×30，孟婆汤 ×40，黑太岁 ×30 </p>
+<p>内侧专属充值活动（内测充值  即享公测20%返利）</p>
+<p>98 元 内丹材料限定包</p>
+<p>铜钱 ×800万，火系橙色碎片 ×100，水系橙色碎片 ×100，土系橙色碎片 ×100，风系橙色碎片 ×100，煞血灰 ×260，泣血灰 ×260，闪煞砂 ×250，裂魂砂 ×250，紫煞晶 ×230，黄泉晶 ×230，吞灵晶 ×210，玄镇晶 ×210，普通内丹随机材料 ×12 组，高级内丹随机材料 ×10 组，金窟宝箱一 ×3，金窟宝箱二 ×3，卦纸 ×6666，髓血丹 ×32、煞血丹 ×32，古玉 ×1、青花宝瓶 ×1</p>
+<p>198 元 天书限定典藏包</p>
+<p>铜钱 ×3000万  随机顶级天书 ×1，随机顶级残页 ×160，霜煞・天书自选，绝霜・天书自选二选一，斗法天书自选 ×1，尸将・天书自选 ×1，阴司天书自选 ×1，宝物随机礼包 - 加锁宝箱 4×1，宝物随机礼包 - 大宝箱 4×1，宝物随机礼包 - 首领 4×1，随机橙色符咒 ×45，自选天书 ×1，卦纸 ×6600，天书・铜钱鬼剑 ×1、天书・断佛手 ×1</p>
+<p>328 元 鬼仆专属限定包</p>
+<p>铜钱 ×2 亿，自选极品鬼仆 ×1，魅影妖狐・顶级、三面罗刹・顶级、双子僵尸・顶级三选一，地狱道魂灯 ×80，修罗道魂灯 ×80，天道魂灯 ×80，阵法秘卷 ×60，随机限定阴契 ×2，限定・白骨碎片 ×320，真龙・忘川碎片 ×280，随机橙色核心宝箱 ×4，自选紫色贪尸舍利 ×8，卦纸 ×9999七彩玉珍 ×1、冰心盏 ×1，随机圣品脸谱一 ×1、随机圣品脸谱二 ×白骨夫人 ×1</p>
+<p>648 元 典藏限定包</p>
+<p>铜钱 ×6000W，珍稀傩面自选箱 ×1，机关傀儡自选箱 ×1，联动傀儡自选箱 ×1，捞尸人套装礼包 ×1，天煞套装礼包 ×1，绝世阴契 ×1，国庆装扮礼包 ×1，美人妆装扮礼包 ×1，法相・幽冥棺 ×1，幽冥棺碎片 ×300，自选幻彩舍利宝箱 ×1，卦纸 ×1388， 血攻丹 ×25、魂血丹 ×25、煞爆丹 ×25，随机仙品脸谱一 ×1，雕龙玉瓶、红木奇珍、青铜剑、碎玉板  ×1，挂纸12888</p>`,
+                gameUrl: "https://f.99610086.xyz/apps/liig",
+                regUrl: "http://206.119.85.15:8100/reg?ch=jun001",
+                inviteCode: "注册自带",
+                imgs: ["yiqizhidi.jpg"]
+            }
+        };
+        const gameBgMap = {
+            '仗剑传说': 'icon1.png',
+            '问道畅玩服10周年': 'icon2.png',
+            '道友来挖宝': 'icon3.png',
+            '潮汐守望者': 'icon4.png',
+            '保卫向日葵国际服': 'icon5.png',
+            '奔奔王国国际服': 'icon6.png',
+            '遗弃之地': 'icon7.png'
+        };
+        function buildImgHtml(imgArr) {
+            let html = '';
+            imgArr.forEach((src, idx) => {
+                html += `<img src="${src}" alt="游戏截图" data-index="${idx}" loading="lazy">`;
+            });
+            return html;
+        }
+        function changeGameBg(gameId) {
+            gameBg.classList.remove('active');
+            setTimeout(() => {
+                const bgImg = gameBgMap[gameId] || 'icon1.png';
+                gameBg.style.backgroundImage = `url('${bgImg}')`;
+                requestAnimationFrame(() => {
+                    gameBg.classList.add('active');
+                });
+            }, 200);
+        }
+        function showGame(id) {
+            document.querySelectorAll('.game-item').forEach(item => item.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+            
+            const data = gameData[id];
+            downloadBtn.classList.remove('btn-disabled');
+            regBtn.classList.remove('btn-disabled');
+            screenshotBox.innerHTML = "";
+            currentImgList = data.imgs;
+            changeGameBg(id);
+            downloadBtn.href = data.gameUrl;
+            regBtn.href = data.regUrl;
+            if (!data.gameUrl) downloadBtn.classList.add('btn-disabled');
+            if (!data.regUrl) regBtn.classList.add('btn-disabled');
+            document.getElementById('gameTitle').innerText = data.title;
+            document.getElementById('codeText').innerText = data.inviteCode;
+            // ✅ 直接显示完整内容 - 100% 保留
+            gameIntro.classList.remove('show');
+            setTimeout(() => {
+                gameIntro.innerHTML = data.intro;
+                gameIntro.classList.add('show');
+            }, 100);
+            if (currentImgList.length > 0) {
+                screenshotBox.innerHTML = buildImgHtml(currentImgList);
+            }
+        }
+        screenshotBox.addEventListener('click', function(e) {
+            if (e.target.tagName === 'IMG') {
+                currentImgIndex = parseInt(e.target.dataset.index);
+                modalImg.src = e.target.src;
+                imgModal.classList.add('show');
+                document.body.style.overflow = 'hidden';
+            }
+        });
+        function closeModal() {
+            imgModal.classList.remove('show');
+            document.body.style.overflow = '';
+        }
+        modalClose.addEventListener('click', closeModal);
+        imgModal.addEventListener('click', (e) => e.target === imgModal && closeModal());
+        function prevImg() {
+            currentImgIndex = currentImgIndex <= 0 ? currentImgList.length - 1 : currentImgIndex - 1;
+            modalImg.src = currentImgList[currentImgIndex];
+        }
+        function nextImg() {
+            currentImgIndex = currentImgIndex >= currentImgList.length - 1 ? 0 : currentImgIndex + 1;
+            modalImg.src = currentImgList[currentImgIndex];
+        }
+        modalPrev.addEventListener('click', prevImg);
+        modalNext.addEventListener('click', nextImg);
+        document.addEventListener('keydown', function(e) {
+            if (!imgModal.classList.contains('show')) return;
+            if (e.key === 'ArrowLeft') prevImg();
+            if (e.key === 'ArrowRight') nextImg();
+            if (e.key === 'Escape') closeModal();
+        });
+        showGame('仗剑传说');
+    </script>
+</body>
+</html>
