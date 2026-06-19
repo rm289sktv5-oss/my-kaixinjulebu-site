@@ -170,7 +170,6 @@
         .sidebar::-webkit-scrollbar-thumb:hover {
             background: rgba(64, 158, 255, 0.7);
         }
-
         @keyframes slideInLeft {
             from { opacity: 0; transform: translateX(-50px); }
             to { opacity: 1; transform: translateX(0); }
@@ -313,7 +312,6 @@
         .main::-webkit-scrollbar-thumb:hover {
             background: rgba(64, 158, 255, 0.7);
         }
-
         @keyframes fadeInUp {
             from { opacity: 0; transform: translateY(30px); }
             to { opacity: 1; transform: translateY(0); }
@@ -458,7 +456,7 @@
         }
         .invite-box {
             padding: 13px 22px;
-            background: rgba255, 193, 7, 0.08);
+            background: rgba(255, 193, 7, 0.08);
             backdrop-filter: blur(15px);
             border: 1px solid rgba(255, 193, 7, 0.25);
             border-radius: 10px;
@@ -685,6 +683,26 @@
                     </div>
                 </div>
             </div>
+            <div class="game-item" onclick="showGame('重返未来1999')">
+                <div class="game-icon" style="background: url('icon8.png') center/cover;"></div>
+                <div class="game-info">
+                    <div class="game-name">重返未来1999</div>
+                    <div class="game-tag">
+                        <span class="type">二次元回合制</span>
+                        <span class="hot">HOT</span>
+                    </div>
+                </div>
+            </div> 
+            <div class="game-item" onclick="showGame('一步两步《MT联动》')">
+                <div class="game-icon" style="background: url('icon9.png') center/cover;"></div>
+                <div class="game-info">
+                    <div class="game-name">一步两步《MT联动》</div>
+                    <div class="game-tag">
+                        <span class="type">塔防模拟经营轻度Roguelike元素的策略休闲</span>
+                        <span class="hot">HOT</span>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
     <!-- 右侧游戏详情 -->
@@ -757,7 +775,7 @@
         }
         downloadBtn.addEventListener('click', (e) => createRipple(e, downloadBtn));
         regBtn.addEventListener('click', (e) => createRipple(e, regBtn));
-        // ✅ 游戏完整数据 - 100% 保留所有简介内容，未做任何删减
+        // ✅ 游戏完整数据 - 修复键名引号
         const gameData = {
             '仗剑传说': {
                 title: "仗剑传说",
@@ -813,7 +831,7 @@
             '保卫向日葵国际服': {
                 title: "保卫向日葵国际服",
                 intro: `<p>记忆塔防小游戏，休闲解压。</p><p><strong>内测兑换码</strong></p><p>jump111、lv80、t01、t02、t03、t04、t05、t06</p>`,
-                gameUrl: "",
+                gameUrl: "https://fefa.fefa4.xin/pc/download/ncpof30l",
                 regUrl: "http://bwxrk.43595.cn/shop/register.html?agent=sSUD4A",
                 inviteCode: "注册自带",
                 imgs: []
@@ -844,12 +862,29 @@
 <p>铜钱 ×2 亿，自选极品鬼仆 ×1，魅影妖狐・顶级、三面罗刹・顶级、双子僵尸・顶级三选一，地狱道魂灯 ×80，修罗道魂灯 ×80，天道魂灯 ×80，阵法秘卷 ×60，随机限定阴契 ×2，限定・白骨碎片 ×320，真龙・忘川碎片 ×280，随机橙色核心宝箱 ×4，自选紫色贪尸舍利 ×8，卦纸 ×9999七彩玉珍 ×1、冰心盏 ×1，随机圣品脸谱一 ×1、随机圣品脸谱二 ×白骨夫人 ×1</p>
 <p>648 元 典藏限定包</p>
 <p>铜钱 ×6000W，珍稀傩面自选箱 ×1，机关傀儡自选箱 ×1，联动傀儡自选箱 ×1，捞尸人套装礼包 ×1，天煞套装礼包 ×1，绝世阴契 ×1，国庆装扮礼包 ×1，美人妆装扮礼包 ×1，法相・幽冥棺 ×1，幽冥棺碎片 ×300，自选幻彩舍利宝箱 ×1，卦纸 ×1388， 血攻丹 ×25、魂血丹 ×25、煞爆丹 ×25，随机仙品脸谱一 ×1，雕龙玉瓶、红木奇珍、青铜剑、碎玉板  ×1，挂纸12888</p>`,
-                gameUrl: "https://f.99610086.xyz/apps/liig",
+                gameUrl: "https://fefa.logoxz.xin/pc/download/l5scugmj",
                 regUrl: "http://206.119.85.15:8100/reg?ch=jun001",
                 inviteCode: "注册自带",
                 imgs: ["yiqizhidi.jpg"]
+            },
+            '重返未来1999': {
+                title: "重返未来1999",
+                intro: `<p>记忆塔防小游戏，休闲解压。</p><p>兑换码</p><p>cfwl1999</p>`,
+                gameUrl: "https://qd.xn--9kq845jbfj.com/9ObS",
+                regUrl: "https://1999.1qpx.com/?p=10670",
+                inviteCode: "注册自带",
+                imgs: []
+            },
+            '一步两步《MT联动》': {
+                title: "一步两步《MT联动》",
+                intro: `<p>记忆塔防小游戏，休闲解压。</p><p>兑换码</p><p>vip11  2万代金券</p>`,
+                gameUrl: "https://yblb.ququ.im/YBLB.html",
+                regUrl: "http://yblb.ossnas.cn/shop/register.html?agent=bxgkAH",
+                inviteCode: "注册自带",
+                imgs: []
             }
         };
+        // 修复每一行末尾逗号
         const gameBgMap = {
             '仗剑传说': 'icon1.png',
             '问道畅玩服10周年': 'icon2.png',
@@ -857,7 +892,9 @@
             '潮汐守望者': 'icon4.png',
             '保卫向日葵国际服': 'icon5.png',
             '奔奔王国国际服': 'icon6.png',
-            '遗弃之地': 'icon7.png'
+            '遗弃之地': 'icon7.png',
+            '重返未来1999': 'icon8.png',
+            '一步两步《MT联动》': 'icon9.png'
         };
         function buildImgHtml(imgArr) {
             let html = '';
